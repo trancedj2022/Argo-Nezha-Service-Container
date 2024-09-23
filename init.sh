@@ -139,15 +139,14 @@ site:
 EOF
 
   # 下载包含本地数据的 sqlite.db 文件，生成18位随机字符串用于本地 Token
-  wget -P ${WORK_DIR}/data/ ${GH_PROXY}https://github.com/fscarmen2/Argo-Nezha-Service-Container/raw/main/sqlite.db
-  LOCAL_TOKEN=$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 18)
-  sqlite3 ${WORK_DIR}/data/sqlite.db "update servers set secret='${LOCAL_TOKEN}' where created_at='2023-04-23 13:02:00.770756566+08:00'"
-
-  # SSH path 与 GH_CLIENTSECRET 一样
-  echo root:"$GH_CLIENTSECRET" | chpasswd root
-  sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g;s/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
-  service ssh restart
-
+  DASHBOARD_LATEST=$(wget -qO- "${GH_PROXY}https://api.github.com/repos/naiba/nezha/releases/latest" | awk -F '"' '/"tag_name"/{print $4}')
+  wget -O /tmp/dashboard.zip ${GH_PROXY}https://github.com/naiba/nezha/releases/download/$DASHBOARD_LATEST/dashboard-linux-$ARCH.zip
+  unzip -o /tmp/dashboard.zip -d /tmp
+  mv -f /tmp/dashboard-linux-$ARCH $WORK_DIR/app
+  wget -qO $WORK_DIR/cloudflared ${GH_PROXY}https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-$ARCH
+  wget -O $WORK_DIR/nezha-agent.zip ${GH_PROXY}https://github.com/nezhahq/agent/releases/latest/download/nezha-agent_linux_$ARCH.zip
+  unzip -o $WORK_DIR/nezha-agent.zip -d $WORK_DIR/
+  rm -rf $WORK_DIR/nezha-agent.zip /tmp/dist /tmp/dashboard.zip
   # 判断 ARGO_AUTH 为 json 还是 token
   # 如为 json 将生成 argo.json 和 argo.yml 文件
   if [[ "$ARGO_AUTH" =~ TunnelSecret ]]; then
